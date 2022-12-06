@@ -67,6 +67,11 @@ public class OrderDao implements Dao<Long,Order> {
     private OrderDao() {
     }
 
+    /**
+     * Return all products in order.
+     * @param orderId ID of the order
+     * @return List of ProductDto
+     */
     public List<ProductDto> getAllProductsInOrder(Long orderId) {
         try (var connection = ConnectionManager.get();
              var preparedStatement = connection.prepareStatement(GET_ALL_PRODUCTS_IN_ORDER)) {
