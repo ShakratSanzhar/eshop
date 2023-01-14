@@ -53,7 +53,7 @@ public class BlacklistDao {
 
     public Optional<Blacklist> findById(Long userId) {
         try (var connection = ConnectionManager.get();
-                var preparedStatement = connection.prepareStatement(FIND_BY_ID)) {
+             var preparedStatement = connection.prepareStatement(FIND_BY_ID)) {
             preparedStatement.setLong(1, userId);
             var resultSet = preparedStatement.executeQuery();
             Blacklist blacklist = null;
@@ -73,7 +73,7 @@ public class BlacklistDao {
             preparedStatement.executeUpdate();
             var generatedKeys = preparedStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
-                blacklist.setUser(userDao.findById(generatedKeys.getLong("user_id"),generatedKeys.getStatement().getConnection()).orElse(null));
+                blacklist.setUser(userDao.findById(generatedKeys.getLong("user_id"), generatedKeys.getStatement().getConnection()).orElse(null));
             }
             return blacklist;
         } catch (SQLException e) {
@@ -93,7 +93,7 @@ public class BlacklistDao {
 
     private Blacklist buildBlacklist(ResultSet resultSet) throws SQLException {
         return new Blacklist(
-                userDao.findById(resultSet.getLong("user_id"),resultSet.getStatement().getConnection()).orElse(null)
+                userDao.findById(resultSet.getLong("user_id"), resultSet.getStatement().getConnection()).orElse(null)
         );
     }
 }

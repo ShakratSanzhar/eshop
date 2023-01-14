@@ -2,7 +2,7 @@ package project.dao;
 
 import project.dto.CartFilter;
 import project.dto.CartProductDto;
-import project.dto.ProductDto;
+import project.dto.ProductsInCartDto;
 import project.entity.Cart;
 import project.util.ConnectionManager;
 
@@ -16,7 +16,7 @@ import java.util.Optional;
 
 import static java.util.stream.Collectors.joining;
 
-public class CartDao implements Dao<Long,Cart> {
+public class CartDao implements Dao<Long, Cart> {
 
     private static final CartDao INSTANCE = new CartDao();
     private static final String DELETE_SQL = """
@@ -24,7 +24,7 @@ public class CartDao implements Dao<Long,Cart> {
             WHERE id=?
             """;
     private static final String SAVE_SQL = """
-            INSERT INTO orders (user_id, price)
+            INSERT INTO cart (user_id, price)
             VALUES (?, ?)
             """;
     private static final String UPDATE_SQL = """
@@ -36,7 +36,7 @@ public class CartDao implements Dao<Long,Cart> {
     private static final String FIND_ALL_SQL = """
             SELECT id,
                 user_id,
-                price,
+                price
             FROM cart
             """;
     private static final String FIND_BY_ID = FIND_ALL_SQL + """
@@ -59,18 +59,23 @@ public class CartDao implements Dao<Long,Cart> {
             WHERE cart_id = ?
             """;
     private final UserDao userDao = UserDao.getInstance();
-private final ProductDao productDao=ProductDao.getInstance();
+    private final ProductDao productDao = ProductDao.getInstance();
+
     private CartDao() {
     }
 
-    public List<ProductDto> getAllProductsInCart(Long cartId) {
+    public static CartDao getInstance() {
+        return INSTANCE;
+    }
+
+    public List<ProductsInCartDto> getAllProductsInCart(Long cartId) {
         try (var connection = ConnectionManager.get();
              var preparedStatement = connection.prepareStatement(GET_ALL_PRODUCTS_IN_CART)) {
-            preparedStatement.setLong(1,cartId);
+            preparedStatement.setLong(1, cartId);
             var resultSet = preparedStatement.executeQuery();
-            List<ProductDto> products = new ArrayList<>();
+            List<ProductsInCartDto> products = new ArrayList<>();
             while (resultSet.next()) {
-                products.add(new ProductDto(productDao.findById(resultSet.getLong("product_id"),resultSet.getStatement().getConnection()).orElse(null),
+                products.add(new ProductsInCartDto(productDao.findById(resultSet.getLong("product_id"), resultSet.getStatement().getConnection()).orElse(null),
                         resultSet.getInt("quantity")));
             }
             return products;
@@ -100,8 +105,8 @@ private final ProductDao productDao=ProductDao.getInstance();
             preparedStatement.executeUpdate();
             var generatedKeys = preparedStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
-                cartProductDto.setCart(findById(generatedKeys.getLong("cart_id"),generatedKeys.getStatement().getConnection()).orElse(null));
-                cartProductDto.setProduct(productDao.findById(generatedKeys.getLong("product_id"),generatedKeys.getStatement().getConnection()).orElse(null));
+                cartProductDto.setCart(findById(generatedKeys.getLong("cart_id"), generatedKeys.getStatement().getConnection()).orElse(null));
+                cartProductDto.setProduct(productDao.findById(generatedKeys.getLong("product_id"), generatedKeys.getStatement().getConnection()).orElse(null));
                 cartProductDto.setQuantity(generatedKeys.getInt("quantity"));
             }
             return cartProductDto;
@@ -110,32 +115,28 @@ private final ProductDao productDao=ProductDao.getInstance();
         }
     }
 
-    public static CartDao getInstance() {
-        return INSTANCE;
-    }
-
     public List<Cart> findAll(CartFilter filter) {
-        List<Object> parameters=new ArrayList<>();
+        List<Object> parameters = new ArrayList<>();
         List<String> whereSql = new ArrayList<>();
-        if(filter.user()!=null) {
+        if (filter.user() != null) {
             whereSql.add("user_id = ?");
             parameters.add(filter.user().getId());
         }
-        if(filter.price()!=null) {
+        if (filter.price() != null) {
             whereSql.add("price = ?");
             parameters.add(filter.price());
         }
         parameters.add(filter.limit());
         parameters.add(filter.offset());
         var where = whereSql.stream()
-                .collect(joining("AND","WHERE","LIMIT ? OFFSET ? "));
-        var sql =FIND_ALL_SQL+ where;
-        try(var connection = ConnectionManager.get();
-            var preparedStatement = connection.prepareStatement(sql)) {
+                .collect(joining("AND", "WHERE", "LIMIT ? OFFSET ? "));
+        var sql = FIND_ALL_SQL + where;
+        try (var connection = ConnectionManager.get();
+             var preparedStatement = connection.prepareStatement(sql)) {
             for (int i = 0; i < parameters.size(); i++) {
-                preparedStatement.setObject(i+1,parameters.get(i));
+                preparedStatement.setObject(i + 1, parameters.get(i));
             }
-            var resultSet=preparedStatement.executeQuery();
+            var resultSet = preparedStatement.executeQuery();
             List<Cart> carts = new ArrayList<>();
             while (resultSet.next()) {
                 carts.add(buildCart(resultSet));
@@ -176,7 +177,7 @@ private final ProductDao productDao=ProductDao.getInstance();
 
     public Optional<Cart> findById(Long id) {
         try (var connection = ConnectionManager.get()) {
-            return findById(id,connection);
+            return findById(id, connection);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -223,7 +224,7 @@ private final ProductDao productDao=ProductDao.getInstance();
     private Cart buildCart(ResultSet resultSet) throws SQLException {
         return new Cart(
                 resultSet.getLong("id"),
-                userDao.findById(resultSet.getLong("user_id"),resultSet.getStatement().getConnection()).orElse(null),
+                userDao.findById(resultSet.getLong("user_id"), resultSet.getStatement().getConnection()).orElse(null),
                 resultSet.getInt("price")
         );
     }

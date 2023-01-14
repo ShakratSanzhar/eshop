@@ -4,14 +4,19 @@ import project.dto.ProductFilter;
 import project.entity.Product;
 import project.util.ConnectionManager;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.joining;
 
-public class ProductDao implements Dao<Long,Product> {
+public class ProductDao implements Dao<Long, Product> {
 
     private static final ProductDao INSTANCE = new ProductDao();
     private static final String DELETE_SQL = """
@@ -38,18 +43,18 @@ public class ProductDao implements Dao<Long,Product> {
             WHERE id =?
             """;
     private static final String FIND_ALL_SQL = """
-            SELECT id=?,
-                category_id =?,
-                name=?,
-                description=?,
-                author=?,
-                publisher=?,
-                publishing_year=?,
-                image=?,
-                price=?,
-                remaining_amount=?,
-                page_count=?,
-                created_at=?
+            SELECT id,
+                category_id,
+                name,
+                description,
+                author,
+                publisher,
+                publishing_year,
+                image,
+                price,
+                remaining_amount,
+                page_count,
+                created_at
             FROM product
             """;
     private static final String FIND_BY_ID = FIND_ALL_SQL + """
@@ -79,7 +84,6 @@ public class ProductDao implements Dao<Long,Product> {
             preparedStatement.setInt(10, product.getPageCount());
             preparedStatement.setTimestamp(11, Timestamp.valueOf(product.getCreatedAt()));
             preparedStatement.setLong(12, product.getId());
-
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -124,38 +128,37 @@ public class ProductDao implements Dao<Long,Product> {
     public List<Product> findAll(ProductFilter filter) {
         List<Object> parameters = new ArrayList<>();
         List<String> whereSql = new ArrayList<>();
-        if (filter.category() != null) {
+        if (filter.getCategoryId() != null) {
             whereSql.add("category_id = ?");
-            parameters.add(filter.category().getId());
+            parameters.add(filter.getCategoryId());
         }
-        if (filter.name() != null) {
+        if (!"".equals(filter.getName()) && filter.getName() != null) {
             whereSql.add("name LIKE ?");
-            parameters.add("%" + filter.name() + "%");
+            parameters.add("%" + filter.getName() + "%");
         }
-        if (filter.description() != null) {
-            whereSql.add("description LIKE ?");
-            parameters.add("%" + filter.description() + "%");
-        }
-        if (filter.author() != null) {
+        if (!"".equals(filter.getAuthor()) && filter.getAuthor() != null) {
             whereSql.add("author LIKE ?");
-            parameters.add("%" + filter.author() + "%");
+            parameters.add("%" + filter.getAuthor() + "%");
         }
-        if (filter.publisher() != null) {
+        if (!"".equals(filter.getPublisher()) && filter.getPublisher() != null) {
             whereSql.add("publisher LIKE ?");
-            parameters.add("%" + filter.publisher() + "%");
+            parameters.add("%" + filter.getPublisher() + "%");
         }
-        if (filter.publishingYear() != null) {
-            whereSql.add("birthday = ?");
-            parameters.add(filter.publishingYear());
+        if (!"".equals(filter.getPrice()) && filter.getPrice() != null) {
+            whereSql.add("price < ?");
+            parameters.add(Integer.parseInt(filter.getPrice()));
         }
-        if (filter.price() != null) {
-            whereSql.add("price = ?");
-            parameters.add(filter.price());
+        parameters.add(filter.getLimit());
+        parameters.add(filter.getOffset());
+        String where = "";
+        if (whereSql.isEmpty()) {
+            where = "LIMIT ? OFFSET ? ";
+        } else if (whereSql.size() == 1) {
+            where = "WHERE " + whereSql.get(0) + " LIMIT ? OFFSET ? ";
+        } else {
+            where = whereSql.stream()
+                    .collect(joining(" AND ", "WHERE ", "LIMIT ? OFFSET ? "));
         }
-        parameters.add(filter.limit());
-        parameters.add(filter.offset());
-        var where = whereSql.stream()
-                .collect(joining("AND", "WHERE", "LIMIT ? OFFSET ? "));
         var sql = FIND_ALL_SQL + where;
         try (var connection = ConnectionManager.get();
              var preparedStatement = connection.prepareStatement(sql)) {
@@ -203,7 +206,7 @@ public class ProductDao implements Dao<Long,Product> {
 
     public Optional<Product> findById(Long id) {
         try (var connection = ConnectionManager.get()) {
-           return findById(id,connection);
+            return findById(id, connection);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -226,3 +229,4 @@ public class ProductDao implements Dao<Long,Product> {
         );
     }
 }
+

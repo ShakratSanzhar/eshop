@@ -1,7 +1,6 @@
 package project.entity;
 
 import project.enums.OrderStatus;
-
 import java.time.LocalDateTime;
 
 public class Order {

@@ -2,19 +2,23 @@ package project.dao;
 
 import project.dto.OrderFilter;
 import project.dto.OrderProductDto;
-import project.dto.ProductDto;
+import project.dto.ProductsInCartDto;
 import project.entity.Order;
 import project.enums.OrderStatus;
 import project.util.ConnectionManager;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.joining;
 
-public class OrderDao implements Dao<Long,Order> {
+public class OrderDao implements Dao<Long, Order> {
 
     private static final OrderDao INSTANCE = new OrderDao();
     private static final String DELETE_SQL = """
@@ -62,25 +66,30 @@ public class OrderDao implements Dao<Long,Order> {
             WHERE order_id = ?
             """;
     private final UserDao userDao = UserDao.getInstance();
-    private final ProductDao productDao=ProductDao.getInstance();
+    private final ProductDao productDao = ProductDao.getInstance();
 
     private OrderDao() {
     }
 
+    public static OrderDao getInstance() {
+        return INSTANCE;
+    }
+
     /**
      * Return all products in order.
+     *
      * @param orderId ID of the order
      * @return List of ProductDto
      */
-    public List<ProductDto> getAllProductsInOrder(Long orderId) {
+    public List<ProductsInCartDto> getAllProductsInOrder(Long orderId) {
         try (var connection = ConnectionManager.get();
              var preparedStatement = connection.prepareStatement(GET_ALL_PRODUCTS_IN_ORDER)) {
-            preparedStatement.setLong(1,orderId);
+            preparedStatement.setLong(1, orderId);
             var resultSet = preparedStatement.executeQuery();
-            List<ProductDto> products = new ArrayList<>();
+            List<ProductsInCartDto> products = new ArrayList<>();
             while (resultSet.next()) {
-                products.add(new ProductDto(productDao.findById(resultSet.getLong("product_id"),resultSet.getStatement().getConnection()).orElse(null),
-                                            resultSet.getInt("quantity")));
+                products.add(new ProductsInCartDto(productDao.findById(resultSet.getLong("product_id"), resultSet.getStatement().getConnection()).orElse(null),
+                        resultSet.getInt("quantity")));
             }
             return products;
         } catch (SQLException e) {
@@ -109,8 +118,8 @@ public class OrderDao implements Dao<Long,Order> {
             preparedStatement.executeUpdate();
             var generatedKeys = preparedStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
-                orderProductDto.setOrder(findById(generatedKeys.getLong("order_id"),generatedKeys.getStatement().getConnection()).orElse(null));
-                orderProductDto.setProduct(productDao.findById(generatedKeys.getLong("product_id"),generatedKeys.getStatement().getConnection()).orElse(null));
+                orderProductDto.setOrder(findById(generatedKeys.getLong("order_id"), generatedKeys.getStatement().getConnection()).orElse(null));
+                orderProductDto.setProduct(productDao.findById(generatedKeys.getLong("product_id"), generatedKeys.getStatement().getConnection()).orElse(null));
                 orderProductDto.setQuantity(generatedKeys.getInt("quantity"));
             }
             return orderProductDto;
@@ -119,36 +128,32 @@ public class OrderDao implements Dao<Long,Order> {
         }
     }
 
-    public static OrderDao getInstance() {
-        return INSTANCE;
-    }
-
     public List<Order> findAll(OrderFilter filter) {
-        List<Object> parameters=new ArrayList<>();
+        List<Object> parameters = new ArrayList<>();
         List<String> whereSql = new ArrayList<>();
-        if(filter.user()!=null) {
+        if (filter.user() != null) {
             whereSql.add("user_id = ?");
             parameters.add(filter.user().getId());
         }
-        if(filter.status()!=null) {
+        if (filter.status() != null) {
             whereSql.add("status = ?");
             parameters.add(filter.status().name());
         }
-        if(filter.price()!=null) {
+        if (filter.price() != null) {
             whereSql.add("price = ?");
             parameters.add(filter.price());
         }
         parameters.add(filter.limit());
         parameters.add(filter.offset());
         var where = whereSql.stream()
-                .collect(joining("AND","WHERE","LIMIT ? OFFSET ? "));
-        var sql =FIND_ALL_SQL+ where;
-        try(var connection = ConnectionManager.get();
-            var preparedStatement = connection.prepareStatement(sql)) {
+                .collect(joining("AND", "WHERE", "LIMIT ? OFFSET ? "));
+        var sql = FIND_ALL_SQL + where;
+        try (var connection = ConnectionManager.get();
+             var preparedStatement = connection.prepareStatement(sql)) {
             for (int i = 0; i < parameters.size(); i++) {
-                preparedStatement.setObject(i+1,parameters.get(i));
+                preparedStatement.setObject(i + 1, parameters.get(i));
             }
-            var resultSet=preparedStatement.executeQuery();
+            var resultSet = preparedStatement.executeQuery();
             List<Order> orders = new ArrayList<>();
             while (resultSet.next()) {
                 orders.add(buildOrder(resultSet));
@@ -189,7 +194,7 @@ public class OrderDao implements Dao<Long,Order> {
 
     public Optional<Order> findById(Long id) {
         try (var connection = ConnectionManager.get()) {
-          return findById(id,connection);
+            return findById(id, connection);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -242,7 +247,7 @@ public class OrderDao implements Dao<Long,Order> {
     private Order buildOrder(ResultSet resultSet) throws SQLException {
         return new Order(
                 resultSet.getLong("id"),
-                userDao.findById(resultSet.getLong("user_id"),resultSet.getStatement().getConnection()).orElse(null),
+                userDao.findById(resultSet.getLong("user_id"), resultSet.getStatement().getConnection()).orElse(null),
                 OrderStatus.valueOf(resultSet.getString("status")),
                 resultSet.getInt("price"),
                 resultSet.getTimestamp("created_at").toLocalDateTime(),

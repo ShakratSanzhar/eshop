@@ -1,8 +1,17 @@
 package project.dto;
 
-import project.entity.Category;
+import lombok.Builder;
+import lombok.Value;
 
-import java.time.LocalDate;
+@Value
+@Builder
+public class ProductFilter {
 
-public record ProductFilter(int limit, int offset, Category category, String name, String description, String author, String publisher, LocalDate publishingYear, Integer price) {
+     Integer limit;
+     Integer offset;
+     Integer categoryId;
+     String name;
+     String author;
+     String publisher;
+     String price;
 }

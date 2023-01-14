@@ -1,5 +1,6 @@
 package project.dao;
 
+import lombok.SneakyThrows;
 import project.dto.UserFilter;
 import project.entity.User;
 import project.enums.Role;
@@ -45,8 +46,21 @@ public class UserDao implements Dao<Long, User> {
     private static final String FIND_BY_ID = FIND_ALL_SQL + """
             WHERE id=?
             """;
+    private static final String GET_BY_EMAIL_AND_PASSWORD = """
+            SELECT id,
+            username,
+            email,
+            password,
+            role
+            FROM users
+            WHERE email = ? AND password = ?
+            """;
 
     private UserDao() {
+    }
+
+    public static UserDao getInstance() {
+        return INSTANCE;
     }
 
     public List<User> findAll(UserFilter filter) {
@@ -118,16 +132,6 @@ public class UserDao implements Dao<Long, User> {
         }
     }
 
-    private User buildUser(ResultSet resultSet) throws SQLException {
-        return new User(
-                resultSet.getLong("id"),
-                resultSet.getString("username"),
-                resultSet.getString("email"),
-                resultSet.getString("password"),
-                Role.valueOf(resultSet.getString("role"))
-        );
-    }
-
     public void update(User user) {
         try (var connection = ConnectionManager.get();
              var preparedStatement = connection.prepareStatement(UPDATE_SQL)) {
@@ -171,7 +175,29 @@ public class UserDao implements Dao<Long, User> {
         }
     }
 
-    public static UserDao getInstance() {
-        return INSTANCE;
+    @SneakyThrows
+    public Optional<User> findByEmailAndPassword(String email, String password) {
+        try (var connection = ConnectionManager.get();
+             var preparedStatement = connection.prepareStatement(GET_BY_EMAIL_AND_PASSWORD)) {
+            preparedStatement.setString(1, email);
+            preparedStatement.setString(2, password);
+
+            var resultSet = preparedStatement.executeQuery();
+            User user = null;
+            if (resultSet.next()) {
+                user = buildUser(resultSet);
+            }
+            return Optional.ofNullable(user);
+        }
+    }
+
+    private User buildUser(ResultSet resultSet) throws SQLException {
+        return new User(
+                resultSet.getLong("id"),
+                resultSet.getString("username"),
+                resultSet.getString("email"),
+                resultSet.getString("password"),
+                Role.valueOf(resultSet.getString("role"))
+        );
     }
 }

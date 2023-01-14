@@ -15,7 +15,7 @@ import java.util.Optional;
 
 import static java.util.stream.Collectors.joining;
 
-public class UserDetailDao implements Dao<Long,UserDetail> {
+public class UserDetailDao implements Dao<Long, UserDetail> {
 
     private static final UserDetailDao INSTANCE = new UserDetailDao();
     private static final String DELETE_SQL = """
@@ -52,36 +52,40 @@ public class UserDetailDao implements Dao<Long,UserDetail> {
     private UserDetailDao() {
     }
 
+    public static UserDetailDao getInstance() {
+        return INSTANCE;
+    }
+
     public List<UserDetail> findAll(UserDetailFilter filter) {
-        List<Object> parameters=new ArrayList<>();
+        List<Object> parameters = new ArrayList<>();
         List<String> whereSql = new ArrayList<>();
-        if(filter.name()!=null) {
+        if (filter.name() != null) {
             whereSql.add("name LIKE ?");
-            parameters.add("%" +filter.name()+"%");
+            parameters.add("%" + filter.name() + "%");
         }
-        if(filter.surname()!=null) {
+        if (filter.surname() != null) {
             whereSql.add("surname LIKE ?");
-            parameters.add("%" +filter.surname()+"%");
+            parameters.add("%" + filter.surname() + "%");
         }
-        if(filter.birthday()!=null) {
+        if (filter.birthday() != null) {
             whereSql.add("birthday = ?");
             parameters.add(filter.birthday());
         }
-        if(filter.phone()!=null) {
+        if (filter.phone() != null) {
             whereSql.add("phone LIKE ?");
-            parameters.add("%" +filter.phone()+"%");
+            parameters.add("%" + filter.phone() + "%");
         }
         parameters.add(filter.limit());
         parameters.add(filter.offset());
         var where = whereSql.stream()
-                .collect(joining("AND","WHERE","LIMIT ? OFFSET ? "));
-        var sql =FIND_ALL_SQL+ where;
-        try(var connection = ConnectionManager.get();
-            var preparedStatement = connection.prepareStatement(sql)) {
+                .collect(joining("AND", "WHERE", "LIMIT ? OFFSET ? "));
+        var sql = FIND_ALL_SQL + where;
+        try (var connection = ConnectionManager.get();
+             var preparedStatement = connection.prepareStatement(sql)) {
             for (int i = 0; i < parameters.size(); i++) {
-                preparedStatement.setObject(i+1,parameters.get(i));
+                preparedStatement.setObject(i + 1, parameters.get(i));
             }
-            var resultSet=preparedStatement.executeQuery();
+            var resultSet = preparedStatement.executeQuery();
             List<UserDetail> userDetails = new ArrayList<>();
             while (resultSet.next()) {
                 userDetails.add(buildUserDetail(resultSet));
@@ -144,11 +148,11 @@ public class UserDetailDao implements Dao<Long,UserDetail> {
             preparedStatement.setString(3, userDetail.getSurname());
             preparedStatement.setDate(4, Date.valueOf(userDetail.getBirthday()));
             preparedStatement.setString(5, userDetail.getPhone());
-            preparedStatement.setTimestamp(3, Timestamp.valueOf(userDetail.getRegistrationDate()));
+            preparedStatement.setTimestamp(6, Timestamp.valueOf(userDetail.getRegistrationDate()));
             preparedStatement.executeUpdate();
             var generatedKeys = preparedStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
-                userDetail.setUser(userDao.findById(generatedKeys.getLong("user_id"),generatedKeys.getStatement().getConnection()).orElse(null));
+                userDetail.setUser(userDao.findById(generatedKeys.getLong("user_id"), generatedKeys.getStatement().getConnection()).orElse(null));
             }
             return userDetail;
         } catch (SQLException e) {
@@ -166,13 +170,9 @@ public class UserDetailDao implements Dao<Long,UserDetail> {
         }
     }
 
-    public static UserDetailDao getInstance() {
-        return INSTANCE;
-    }
-
     private UserDetail buildUserDetail(ResultSet resultSet) throws SQLException {
         return new UserDetail(
-                userDao.findById(resultSet.getLong("user_id"),resultSet.getStatement().getConnection()).orElse(null),
+                userDao.findById(resultSet.getLong("user_id"), resultSet.getStatement().getConnection()).orElse(null),
                 resultSet.getString("name"),
                 resultSet.getString("surname"),
                 resultSet.getDate("birthday").toLocalDate(),

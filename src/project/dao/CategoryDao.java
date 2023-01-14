@@ -42,23 +42,27 @@ public class CategoryDao implements Dao<Integer, Category> {
     private CategoryDao() {
     }
 
+    public static CategoryDao getInstance() {
+        return INSTANCE;
+    }
+
     public List<Category> findAll(CategoryFilter filter) {
-        List<Object> parameters=new ArrayList<>();
+        List<Object> parameters = new ArrayList<>();
         String whereSql = "";
-        if(filter.name()!=null) {
+        if (filter.name() != null) {
             whereSql = "name LIKE ?";
-            parameters.add("%" +filter.name()+"%");
+            parameters.add("%" + filter.name() + "%");
         }
         parameters.add(filter.limit());
         parameters.add(filter.offset());
         var where = "WHERE" + whereSql + "LIMIT ? OFFSET ?";
-        var sql =FIND_ALL_SQL+ where;
-        try(var connection = ConnectionManager.get();
-            var preparedStatement = connection.prepareStatement(sql)) {
+        var sql = FIND_ALL_SQL + where;
+        try (var connection = ConnectionManager.get();
+             var preparedStatement = connection.prepareStatement(sql)) {
             for (int i = 0; i < parameters.size(); i++) {
-                preparedStatement.setObject(i+1,parameters.get(i));
+                preparedStatement.setObject(i + 1, parameters.get(i));
             }
-            var resultSet=preparedStatement.executeQuery();
+            var resultSet = preparedStatement.executeQuery();
             List<Category> categories = new ArrayList<>();
             while (resultSet.next()) {
                 categories.add(buildCategory(resultSet));
@@ -83,7 +87,11 @@ public class CategoryDao implements Dao<Integer, Category> {
         try (var connection = ConnectionManager.get();
              var preparedStatement = connection.prepareStatement(SAVE_SQL, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setString(1, category.getName());
-            preparedStatement.setInt(2, category.getParentCategory().getId());
+            if (category.getParentCategory() != null) {
+                preparedStatement.setInt(2, category.getParentCategory().getId());
+            } else {
+                preparedStatement.setObject(2, null);
+            }
             preparedStatement.executeUpdate();
             var generatedKeys = preparedStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
@@ -137,7 +145,7 @@ public class CategoryDao implements Dao<Integer, Category> {
 
     public Optional<Category> findById(Integer id) {
         try (var connection = ConnectionManager.get()) {
-            return findById(id,connection);
+            return findById(id, connection);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -147,11 +155,7 @@ public class CategoryDao implements Dao<Integer, Category> {
         return new Category(
                 resultSet.getInt("id"),
                 resultSet.getString("name"),
-                getInstance().findById(resultSet.getInt("parent_id"),resultSet.getStatement().getConnection()).orElse(null)
+                getInstance().findById(resultSet.getInt("parent_id"), resultSet.getStatement().getConnection()).orElse(null)
         );
-    }
-
-    public static CategoryDao getInstance() {
-        return INSTANCE;
     }
 }

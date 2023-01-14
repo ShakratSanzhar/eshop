@@ -1,11 +1,12 @@
 CREATE DATABASE eshop;
 
+
 CREATE TABLE IF NOT EXISTS users
 (
     id       BIGSERIAL PRIMARY KEY,
-    username VARCHAR(128) UNIQUE NOT NULL,
+    username VARCHAR(128)  NOT NULL,
     email    VARCHAR(128) UNIQUE NOT NULL,
-    password VARCHAR(128) UNIQUE NOT NULL,
+    password VARCHAR(128)  NOT NULL,
     role     VARCHAR(128)        NOT NULL
 );
 

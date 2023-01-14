@@ -24,7 +24,6 @@ public final class ConnectionManager {
         initConnectionPool();
     }
 
-
     private ConnectionManager() {
     }
 
@@ -32,7 +31,7 @@ public final class ConnectionManager {
         var poolSize = PropertiesUtil.get(POOL_SIZE_KEY);
         var size = poolSize == null ? DEFAULT_POOL_SIZE : Integer.parseInt(poolSize);
         pool = new ArrayBlockingQueue<>(size);
-        sourceConnections=new ArrayList<>(size);
+        sourceConnections = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
             var connection = open();
             var proxyConnection = (Connection) Proxy.newProxyInstance(ConnectionManager.class.getClassLoader(), new Class[]{Connection.class},
@@ -54,7 +53,7 @@ public final class ConnectionManager {
 
     public static void closePool() {
         try {
-            for(Connection sourceConnection:sourceConnections) {
+            for (Connection sourceConnection : sourceConnections) {
                 sourceConnection.close();
             }
         } catch (SQLException e) {
